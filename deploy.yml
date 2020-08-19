@@ -12,6 +12,11 @@
         - docker-compose.yml
         - .env
 
+    - name: Docker Login
+      docker_login:
+        username: '{{ dockerhub_user }}'
+        password: '{{ dockerhub_pass }}'
+
     - name: Deploy project stack into swarm cluster
       docker_stack:
         state: present

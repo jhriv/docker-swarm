@@ -68,7 +68,7 @@
 
     - name: Install pyyaml
       pip:
-        name: pyyaml
+        name: [ 'pyyaml', 'docker' ]
         state: present
       become: true
       when: (manager | default (false)) | bool()

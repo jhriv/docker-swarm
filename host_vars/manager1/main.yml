@@ -1,0 +1,6 @@
+---
+
+manager: true
+
+dockerhub_user: jhriv
+dockerhub_pass: '{{ vault_dockerhub_pass }}'
