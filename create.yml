@@ -1,0 +1,82 @@
+---
+
+- name: Create a Swarm Manager
+  hosts: all
+    # hosts: w*
+
+  tasks:
+    - name: IP address.
+      debug: 'msg={{ ansible_all_ipv4_addresses[0] }}'
+      # This could be the wrong IP; looks to be non-deterministic ordering
+
+    - name: Get docker status
+      command: docker system info -f "{{ '{{ .Swarm.LocalNodeState }}' }}"
+      register: swarm_status
+      changed_when: false
+      check_mode: false
+      tags: doit
+
+        #- set_fact:
+        #swarm_status: "{{ docker_system.stdout_lines | regex_replace('^.* swarm: ((in|)active).*', '\\1', ignorecase=true ) }}"
+
+    - debug: var=swarm_status.stdout
+      tags: doit
+
+    - name: get swarm manager IP
+      command: docker system info -f "{{ '{{range slice .Swarm.RemoteManagers 0 -}} {{.Addr}} {{- end }}' }}"
+      register: reg_manager_ip
+      changed_when: false
+      check_mode: false
+      tags: doit
+      run_once: true
+      when: (manager | default (false)) | bool()
+
+    - set_fact:
+        manager_ip: '{{ reg_manager_ip.stdout }}'
+
+    - debug: var=manager_ip
+      tags: doit
+
+    - name: Create a Swarm ... Manager
+      command: 'docker swarm init --advertise-addr {{ ansible_all_ipv4_addresses[0] }}'
+      register: swarm_manager
+      when: 
+        - swarm_status.stdout == 'inactive'
+        - (manager | default (false))  | bool()
+
+    - debug: var=swarm_manager
+
+    - name: Get Token
+      command: docker swarm join-token --quiet worker
+      register: reg_swarm_join_token
+      changed_when: false
+      check_mode: false
+      when: (manager | default (false)) | bool()
+      run_once: true
+
+    - set_fact:
+        swarm_join_token: '{{ reg_swarm_join_token.stdout }}'
+
+    - debug: var=swarm_join_token
+
+    - name: Install jsondiff & other things
+      package: 
+        name: [ 'python-jsondiff', 'python3-jsondiff', 'python-pip' ]
+        state: present
+      become: true
+      when: (manager | default (false)) | bool()
+
+    - name: Install pyyaml
+      pip:
+        name: pyyaml
+        state: present
+      become: true
+      when: (manager | default (false)) | bool()
+
+
+
+    - name: Join Swarm
+      command: docker swarm join --token {{ swarm_join_token }} {{ manager_ip }}
+      when: 
+        - not (( manager | default( false)) | bool () )
+        - swarm_status.stdout == 'inactive'

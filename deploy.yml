@@ -1,0 +1,24 @@
+---
+
+- name: Swarm deploy the Histories
+  hosts: manager1
+
+  tasks:
+    - name: Push docker compose
+      copy:
+        dest: '{{ item }}'
+        src: '{{ item }}'
+      loop:
+        - docker-compose.yml
+        - .env
+
+    - name: Deploy project stack into swarm cluster
+      docker_stack:
+        state: present
+        name: "oral-history"
+        resolve_image: always
+        compose:
+          - docker-compose.yml
+
+
+  
